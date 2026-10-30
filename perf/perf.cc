@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <deque>
+#include <exception>
 #include <iomanip>
 #include <iostream>
 #include <mutex>
@@ -109,6 +110,9 @@ public:
             notifier_.join();
         if (waiter_.joinable())
             waiter_.join();
+
+        if (thread_error_)
+            std::rethrow_exception(thread_error_);
     }
 
     const std::vector<double>& samples() const
@@ -127,6 +131,7 @@ private:
     std::condition_variable notify_cv_;
     std::condition_variable ack_cv_;
     bool stopping_ = false;
+    std::exception_ptr thread_error_;
 
     // 当前通知序号
     uint64_t sequence_ = 0;
@@ -141,75 +146,98 @@ private:
 
     void notifier_thread()
     {
-        for (uint64_t i = 1;
-             i <= iterations_ + warmup_;
-             ++i) {
+        try {
+            for (uint64_t i = 1;
+                 i <= iterations_ + warmup_;
+                 ++i) {
 
-            {
-                std::unique_lock<std::mutex> lock(mutex_);
+                {
+                    std::unique_lock<std::mutex> lock(mutex_);
 
-                // 等待 Waiter 完成上一轮测量
-                ack_cv_.wait(lock, [&] {
-                    return ack_sequence_ == i - 1;
-                });
+                    // 等待 Waiter 完成上一轮测量
+                    ack_cv_.wait(lock, [&] {
+                        return ack_sequence_ == i - 1 || stopping_;
+                    });
 
-                sequence_ = i;
+                    if (stopping_)
+                        return;
+
+                    sequence_ = i;
+                }
+
+                // 在 notify_one() 之前记录时间戳
+                notify_timestamp_.store(
+                    now_ns(),
+                    std::memory_order_release);
+
+                // 唤醒对应的 Waiter
+                notify_cv_.notify_one();
             }
-
-            // 在 notify_one() 之前记录时间戳
-            notify_timestamp_.store(
-                now_ns(),
-                std::memory_order_release);
-
-            // 唤醒对应的 Waiter
-            notify_cv_.notify_one();
+        } catch (...) {
+            report_thread_error();
         }
     }
 
     void waiter_thread()
     {
-        uint64_t last_sequence = 0;
+        try {
+            uint64_t last_sequence = 0;
 
-        for (uint64_t i = 1;
-             i <= iterations_ + warmup_;
-             ++i) {
+            for (uint64_t i = 1;
+                 i <= iterations_ + warmup_;
+                 ++i) {
 
-            int64_t latency_ns = 0;
+                int64_t latency_ns = 0;
 
-            {
-                std::unique_lock<std::mutex> lock(mutex_);
+                {
+                    std::unique_lock<std::mutex> lock(mutex_);
 
-                // 等待 Notifier 发出通知
-                notify_cv_.wait(lock, [&] {
-                    return sequence_ != last_sequence || stopping_;
-                });
+                    // 等待 Notifier 发出通知
+                    notify_cv_.wait(lock, [&] {
+                        return sequence_ != last_sequence || stopping_;
+                    });
 
-                if (stopping_)
-                    return;
+                    if (stopping_)
+                        return;
 
-                // Waiter 已经被唤醒并重新获得 mutex
-                const int64_t wakeup_time = now_ns();
+                    // Waiter 已经被唤醒并重新获得 mutex
+                    const int64_t wakeup_time = now_ns();
 
-                const int64_t notify_time =
-                    notify_timestamp_.load(
-                        std::memory_order_acquire);
+                    const int64_t notify_time =
+                        notify_timestamp_.load(
+                            std::memory_order_acquire);
 
-                latency_ns = wakeup_time - notify_time;
+                    latency_ns = wakeup_time - notify_time;
 
-                last_sequence = sequence_;
+                    last_sequence = sequence_;
 
-                // 告诉 Notifier，本轮已经完成
-                ack_sequence_ = last_sequence;
+                    // 告诉 Notifier，本轮已经完成
+                    ack_sequence_ = last_sequence;
+                }
+
+                // 唤醒 Notifier，允许下一轮通知
+                ack_cv_.notify_one();
+
+                if (i > warmup_) {
+                    samples_.push_back(
+                        static_cast<double>(latency_ns));
+                }
             }
-
-            // 唤醒 Notifier，允许下一轮通知
-            ack_cv_.notify_one();
-
-            if (i > warmup_) {
-                samples_.push_back(
-                    static_cast<double>(latency_ns));
-            }
+        } catch (...) {
+            report_thread_error();
         }
+    }
+
+    void report_thread_error()
+    {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (!thread_error_)
+                thread_error_ = std::current_exception();
+            stopping_ = true;
+        }
+        notify_cv_.notify_one();
+        ack_cv_.notify_one();
     }
 };
 
