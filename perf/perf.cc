@@ -86,14 +86,29 @@ public:
 
     void run()
     {
-        std::thread waiter(
+        waiter_ = std::thread(
             &NotifyPair::waiter_thread, this);
 
-        std::thread notifier(
-            &NotifyPair::notifier_thread, this);
+        try {
+            notifier_ = std::thread(
+                &NotifyPair::notifier_thread, this);
+        } catch (...) {
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                stopping_ = true;
+            }
+            notify_cv_.notify_one();
+            waiter_.join();
+            throw;
+        }
+    }
 
-        notifier.join();
-        waiter.join();
+    void join()
+    {
+        if (notifier_.joinable())
+            notifier_.join();
+        if (waiter_.joinable())
+            waiter_.join();
     }
 
     const std::vector<double>& samples() const
@@ -105,10 +120,13 @@ private:
     unsigned int iterations_;
     unsigned int warmup_;
 
+    std::thread waiter_;
+    std::thread notifier_;
     std::mutex mutex_;
 
     std::condition_variable notify_cv_;
     std::condition_variable ack_cv_;
+    bool stopping_ = false;
 
     // 当前通知序号
     uint64_t sequence_ = 0;
@@ -163,8 +181,11 @@ private:
 
                 // 等待 Notifier 发出通知
                 notify_cv_.wait(lock, [&] {
-                    return sequence_ != last_sequence;
+                    return sequence_ != last_sequence || stopping_;
                 });
+
+                if (stopping_)
+                    return;
 
                 // Waiter 已经被唤醒并重新获得 mutex
                 const int64_t wakeup_time = now_ns();
@@ -256,20 +277,18 @@ int main(int argc, char* argv[])
             benchmarks.emplace_back(iterations, warmup);
         }
 
-        // 同时启动所有线程对
-        std::vector<std::thread> runners;
-        runners.reserve(pairs);
-
-        for (unsigned int i = 0; i < pairs; ++i) {
-            runners.emplace_back(
-                [&benchmarks, i] {
-                    benchmarks[i].run();
-                });
+        // Start all pairs before joining so they run concurrently.
+        try {
+            for (auto& benchmark : benchmarks)
+                benchmark.run();
+        } catch (...) {
+            for (auto& benchmark : benchmarks)
+                benchmark.join();
+            throw;
         }
 
-        for (auto& t : runners) {
-            t.join();
-        }
+        for (auto& benchmark : benchmarks)
+            benchmark.join();
 
         // 汇总所有线程对的测量结果
         std::vector<double> all_samples;

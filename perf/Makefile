@@ -7,13 +7,14 @@ OBJS = $(SRCS:.cc=.o)
 TARGET = perf
 INCLUDES = -Isdk
 CXXFLAGS = -std=c++17 -pthread
+LDFLAGS = -static
 
 .PHONY: all clean
 
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) -o $(TARGET)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(OBJS) -o $(TARGET)
 
 %.o: %.cc
 	@echo "Compiling $@ ..."
