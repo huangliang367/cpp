@@ -17,6 +17,43 @@
 #include <vector>
 #include "trace_categories.h"
 
+namespace {
+
+class Observer : public perfetto::TrackEventSessionObserver {
+ public:
+  Observer() { perfetto::TrackEvent::AddSessionObserver(this); }
+  ~Observer() override { perfetto::TrackEvent::RemoveSessionObserver(this); }
+
+  void OnStart(const perfetto::DataSourceBase::StartArgs&) override {
+    std::unique_lock<std::mutex> lock(mutex);
+    cv.notify_one();
+  }
+
+  void WaitForTracingStart() {
+    PERFETTO_LOG("Waiting for tracing to start...");
+    std::unique_lock<std::mutex> lock(mutex);
+    cv.wait(lock, [] { return perfetto::TrackEvent::IsEnabled(); });
+    PERFETTO_LOG("Tracing started");
+  }
+
+  std::mutex mutex;
+  std::condition_variable cv;
+};
+
+void InitializePerfetto() {
+  perfetto::TracingInitArgs args;
+  // The backends determine where trace events are recorded. For this example we
+  // are going to use the system-wide tracing service, so that we can see our
+  // app's events in context with system profiling information.
+  args.backends = perfetto::kSystemBackend;
+  args.enable_system_consumer = false;
+
+  perfetto::Tracing::Initialize(args);
+  perfetto::TrackEvent::Register();
+}
+
+}  // namespace
+
 using Clock = std::chrono::steady_clock;
 using Nanoseconds = std::chrono::nanoseconds;
 
@@ -170,6 +207,7 @@ private:
                     now_ns(),
                     std::memory_order_release);
 
+				TRACE_EVENT_INSTANT("app", "start_notify");
                 // 唤醒对应的 Waiter
                 notify_cv_.notify_one();
             }
@@ -200,6 +238,7 @@ private:
                     if (stopping_)
                         return;
 
+					
                     // Waiter 已经被唤醒并重新获得 mutex
                     const int64_t wakeup_time = now_ns();
 
@@ -207,6 +246,7 @@ private:
                         notify_timestamp_.load(
                             std::memory_order_acquire);
 
+                    TRACE_EVENT_INSTANT("app", "waked");
                     latency_ns = wakeup_time - notify_time;
 
                     last_sequence = sequence_;
@@ -277,8 +317,22 @@ static void print_statistics(
         << '\n';
 }
 
+void print_usage()
+{
+	TRACE_EVENT("app", "perf usage");
+	std::cerr
+		<< "Usage: notify_benchmark [pairs] "
+		<< "[iterations] [warmup]\n";
+}
+
 int main(int argc, char* argv[])
 {
+
+	InitializePerfetto();
+
+  	Observer observer;
+  	observer.WaitForTracingStart();
+
     try {
         // 默认创建 4 对线程
         unsigned int pairs =
@@ -305,6 +359,9 @@ int main(int argc, char* argv[])
             benchmarks.emplace_back(iterations, warmup);
         }
 
+		print_usage();
+		TRACE_EVENT("app", "perf start");
+		TRACE_EVENT_INSTANT("app", "start_perf");
         // Start all pairs before joining so they run concurrently.
         try {
             for (auto& benchmark : benchmarks)
@@ -364,6 +421,10 @@ int main(int argc, char* argv[])
             << "[iterations] [warmup]\n";
         return 1;
     }
+
+	TRACE_COUNTER("app", "total_samples", 121);
+	TRACE_EVENT_INSTANT("app", "end_perf");
+	perfetto::TrackEvent::Flush();
 
     return 0;
 }

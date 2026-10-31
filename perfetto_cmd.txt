@@ -1,0 +1,6 @@
+sudo tracebox traced &
+sudo tracebox traced_probes &
+./perf 
+
+
+sudo tracebox perfetto  --txt -c config.txtpb -o notify.perfetto-trace &

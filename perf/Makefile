@@ -1,12 +1,12 @@
 CROSS_COMPILE = /home/hl/toolchains/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-
 
 CC = $(CROSS_COMPILE)gcc
-CXX = $(CROSS_COMPILE)g++
+CXX = ccache $(CROSS_COMPILE)g++
 SRCS = perf.cc sdk/perfetto.cc trace_categories.cc
 OBJS = $(SRCS:.cc=.o)
 TARGET = perf
 INCLUDES = -Isdk
-CXXFLAGS = -std=c++17 -pthread
+CXXFLAGS = -std=c++17 -pthread -MMD -MP
 LDFLAGS =
 
 .PHONY: all clean
@@ -21,4 +21,6 @@ $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 clean:
-	rm -f $(TARGET) $(OBJS)
+	rm -f $(TARGET) $(OBJS) $(OBJS:.o=.d)
+
+-include $(OBJS:.o=.d)
