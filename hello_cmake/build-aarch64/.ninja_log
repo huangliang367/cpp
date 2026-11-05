@@ -1,0 +1,4 @@
+# ninja log v5
+0	409	1793888109770652974	CMakeFiles/hello.dir/src/main.cc.o	e218148630694ce8
+3	408	1793888109770652974	CMakeFiles/hello.dir/src/hello.cc.o	19562fb02ba4ce5d
+0	97	1793888138086720991	hello	a4e8b430248002f

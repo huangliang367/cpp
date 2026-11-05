@@ -1,0 +1,3 @@
+/home/hl/code/cpp/hello_cmake/build-aarch64/CMakeFiles/hello.dir
+/home/hl/code/cpp/hello_cmake/build-aarch64/CMakeFiles/edit_cache.dir
+/home/hl/code/cpp/hello_cmake/build-aarch64/CMakeFiles/rebuild_cache.dir

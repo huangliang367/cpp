@@ -1,10 +1,10 @@
 .PHONY: all clean test
 
 all: build/CMakeCache.txt
-	cmake --build build
+	@cmake --build build
 
 build/CMakeCache.txt:
-	cmake -S . -B build -G Ninja
+	@cmake -S . -B build -G Ninja
 
 test: all
 	@./build/hello
