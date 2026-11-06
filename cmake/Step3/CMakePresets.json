@@ -5,9 +5,10 @@
       "name": "tutorial",
       "displayName": "Tutorial Preset",
       "description": "Preset to use with the tutorial",
-      "TODO8": "Set the build directory",
+	  "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
-        "TODO9": "Set the C++ standard version"
+        "CMAKE_CXX_STANDARD": "20"
       }
     }
   ]
