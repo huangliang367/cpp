@@ -14,6 +14,6 @@ $(CMAKE_FILE):
 clean:
 	rm -rf build
 	rm -rf compile_commands.json
-	
+
 run: all
-	./build/Tutorial 20
+	./build/Tutorial/Tutorial 20
