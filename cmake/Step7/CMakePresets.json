@@ -8,7 +8,8 @@
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "TUTORIAL_USE_STD_SQRT": "OFF",
-        "TUTORIAL_ENABLE_IPO": "OFF"
+        "TUTORIAL_ENABLE_IPO": "OFF",
+		"CMAKE_CXX_COMPILER": "g++-13"
       }
     }
   ]

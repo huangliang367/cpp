@@ -14,6 +14,7 @@ target_sources(MathFunctions
 target_link_libraries(MathFunctions
   PRIVATE
     MathLogger
+	SqrtTable
 
   PUBLIC
     OpAdd
@@ -52,3 +53,4 @@ endif()
 add_subdirectory(MathLogger)
 add_subdirectory(MathExtensions)
 # TODO9: Add the MakeTable subdirectory to the project
+add_subdirectory(MakeTable)

@@ -56,7 +56,8 @@ double fallback_mysqrt(double x)
 }
 
 // TODO10: Replace this hardcoded sqrtTable with #include <SqrtTable.h>
-double sqrtTable[] = { 0, 1, 1, 2, 2, 2, 2, 3, 3, 3 };
+// double sqrtTable[] = { 0, 1, 1, 2, 2, 2, 2, 3, 3, 3 };
+#include <SqrtTable.h>
 
 double table_sqrt(double x)
 {
