@@ -13,7 +13,7 @@ target_sources(MathFunctions
 # TODO3: Add a link to MathLogger for the MathFunctions library. Note that
 #        MathLogger will only be used in the MathFunctions implementation,
 #        not the headers
-
+target_link_libraries(MathFunctions PRIVATE MathLogger)
 # TODO8: Add links to OpAdd, OpMul, and OpSub libraries for the
 #        MathFunctions library.  Note that their headers will be
 #        exposed in the MathFunctions.h header, and must be available
@@ -26,5 +26,5 @@ if(TUTORIAL_USE_STD_SQRT)
 endif()
 
 # TODO4: Add the MathLogger subdirectory
-
+add_subdirectory(MathLogger)
 # TODO9: Add the MathExtensions subdirectory
