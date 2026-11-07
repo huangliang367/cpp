@@ -5,7 +5,9 @@
 
 // TODO3: If the TUTORIAL_USE_SSE2 definition is set, include
 //        the <emmintrin.h> header
-
+#ifdef TUTORIAL_USE_SSE2
+#include <emmintrin.h>
+#endif
 namespace {
 
 mathlogger::Logger Logger;
