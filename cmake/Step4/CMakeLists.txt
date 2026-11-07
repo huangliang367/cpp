@@ -6,6 +6,7 @@ option(TUTORIAL_BUILD_UTILITIES "Build the Tutorial executable" ON)
 
 # TODO1: Add a default-OFF option named TUTORIAL_USE_STD_SQRT, with a doc
 #        string of "Use std::sqrt"
+option(TUTORIAL_USE_STD_SQRT "Use std::sqrt" OFF)
 
 if(TUTORIAL_BUILD_UTILITIES)
   add_subdirectory(Tutorial)

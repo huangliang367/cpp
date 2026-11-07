@@ -1,5 +1,5 @@
 // TODO5: Include <cmath>
-
+#include <cmath>
 #include <format>
 #include <iostream>
 
@@ -32,7 +32,10 @@ double sqrt(double x)
 {
   // TODO6: Check if TUTORIAL_USE_STD_SQRT is defined, if so use std::sqrt
   //        instead of mysqrt
-
+#ifdef TUTORIAL_USE_STD_SQRT
+  return std::sqrt(x);
+#else
   return mysqrt(x);
+#endif
 }
 }
